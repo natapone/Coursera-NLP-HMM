@@ -16,7 +16,7 @@ print "count file name = $count_file_path \n";
 
 print "Reading list of RARE words ..... \n";
 # get list of RARE words
-my $rare_words = get_rare_words($count_file_path, 5);
+my $rare_words = get_rare_words($count_file_path, -5);
 #my @rare_count = keys $rare_words;
 print "RARE words count = ", scalar keys $rare_words, "\n";
 #print Dumper($rare_words), "\n";
@@ -34,33 +34,43 @@ sub replace_training_set {
     open (OUTFILE, '>'.$train_file_path.".".$assignment_name); # new training file
     while (<MYFILE>) {
         chomp;
-        my @count_words = split(/ /, $_);
+        # prevent Got empty input file/stream.
+        if ($_) {
+            my @count_words = split(/ /, $_);
         
-        if (@count_words > 2) {
-            print "Sucka!!! ==> $_ \n";
-            exit;
-        }
-        
-        my $word = $count_words[0];
-        my $tag  = $count_words[1];
-        
-        my $out  = '';
-        if ($word) {
-            if ($rare_words->{$word}) {
-                $out = "_RARE_"." ".$tag;
-            } else {
-                $out = $_ if ($_);
+            if (@count_words > 2) {
+                print "Sucka!!! ==> $_ \n";
+                exit;
             }
+            
+            my $word = $count_words[0];
+            my $tag  = $count_words[1];
+            
+            my $out;
+            if (defined($word)) {
+                if ($rare_words->{$word}) {
+                    $out = "_RARE_"." ".$tag;
+                } else {
+                    $out = $_;
+                }
+            } 
+            
+            if (defined($out)) {
+                print OUTFILE $out."\n";
+            } else {
+                print OUTFILE "\n";
+            }
+            
+        } else {
+            print OUTFILE "\n";
         }
-        
-        print OUTFILE "$out\n";
         
 #        $i++;
 #        last if ($i >= 1500);
     }
     
-    close (MYFILE);
     close (OUTFILE); 
+    close (MYFILE);
 }
 
 sub get_rare_words {
