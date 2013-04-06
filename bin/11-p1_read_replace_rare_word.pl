@@ -16,7 +16,7 @@ print "count file name = $count_file_path \n";
 
 print "Reading list of RARE words ..... \n";
 # get list of RARE words
-my $rare_words = get_rare_words($count_file_path, -5);
+my $rare_words = get_rare_words($count_file_path, 5);
 #my @rare_count = keys $rare_words;
 print "RARE words count = ", scalar keys $rare_words, "\n";
 #print Dumper($rare_words), "\n";
