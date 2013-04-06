@@ -1,0 +1,6 @@
+Revision history for Perl extension Coursera::NLP::HMM.
+
+0.01  Sat Apr  6 23:16:18 2013
+	- original version; created by h2xs 1.23 with options
+		-X -A -n Coursera::NLP::HMM
+

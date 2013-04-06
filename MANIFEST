@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/Coursera-NLP-HMM.t
+lib/Coursera/NLP/HMM.pm
