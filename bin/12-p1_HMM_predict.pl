@@ -8,7 +8,8 @@ use FindBin;
 
 my $train_file_path = "$FindBin::Bin/../../h1-p/gene.train";
 my $count_file_path = "$FindBin::Bin/../../h1-p/gene.counts";
-my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.dev";
+#my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.dev";
+my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.test";
 my $assignment_name = "p1";
 
 my $result_file_path    = "$FindBin::Bin/../../h1-p/gene_dev.$assignment_name.out";
@@ -29,22 +30,13 @@ my $default_tag = _get_default_tag($lib_n_gram, $all_n_gram);
 # Compute emission part
 my $dev_strings = read_gene_dev($dev_file_path);
 my $tagger_results = compute_emission($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_tag);
-print Dumper($tagger_results) ," \n";
+#print Dumper($tagger_results) ," \n";
 
 # write to result file
 if ($assignment_name eq 'p1') {
     write_result($tagger_results, $result_file_path);
 }
 
-#sub write_result {
-#    my ($tagger_results, $result_file_path) = @_;
-#    
-#    foreach my $result (@$tagger_results) {
-#        
-#        
-#        
-#    }
-#}
 
 sub compute_emission {
     my ($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_tag) = @_;
@@ -105,8 +97,8 @@ sub read_gene_dev {
         
         push(@strings, $_);
         
-        $i++;
-        last if ($i >= 150);
+#        $i++;
+#        last if ($i >= 150);
     }
     close (MYFILE);
     
@@ -160,16 +152,10 @@ sub build_lib {
             my @word_parts  = split(/ /, $count_parts[2]);
             
             #----------
-#            if ($target_hash eq '$lib_n_gram' && $1 eq '3') {
-##                print $count_parts[2], "\n";
-#                $all_3_gram->{$count_parts[2]} = 1;
-#            }
-            
             if ($target_hash eq '$lib_n_gram' && $1 ) {
                 $all_n_gram->{$1}->{$count_parts[2]} = 1;
                 
             }
-            
             #----------
             
             my $hash_path = '';
@@ -190,6 +176,35 @@ sub build_lib {
     
     return ($lib_word_tag, $lib_n_gram, $all_n_gram);
 }
+
+sub write_result {
+    my ($tagger_results, $result_file_path) = @_;
+    
+    open (OUTFILE, '>'.$result_file_path); # write to result file
+    foreach my $result (@$tagger_results) {
+        
+#        print Dumper($result), "\n";
+        
+        my $out;
+        if ($result->{'word'} ne "") {
+            $out = $result->{'word'};
+            
+            if (defined($result->{'tag'})) {
+                $out .= " ".$result->{'tag'};
+            }
+        }
+        
+        if (defined($out)) {
+            print OUTFILE $out."\n";
+        } else {
+            print OUTFILE "\n";
+        }
+        
+    }
+    close (OUTFILE); 
+    print "Write output to $result_file_path \n";
+}
+
 
 sub _get_default_tag {
     my ($lib_n_gram, $all_n_gram) = @_;
