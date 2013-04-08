@@ -38,18 +38,23 @@ if ($assignment_name eq 'p1') {
     write_result($tagger_results, $result_file_path);
 }
 
-# Compute Trigram part
 if ($assignment_name eq 'p2') {
+    # Compute Trigram part
     $all_n_gram = cal_trigram_TriTagger($lib_n_gram, $all_n_gram);
     print Dumper($all_n_gram);
     my $default_Tritag = _get_default_Tritag($all_n_gram);
     print "default_Tritag == $default_Tritag \n";
     
-#    my $dev_strings = read_gene_dev($dev_file_path);
-#    my $tagger_results = compute_emission($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_Tritag);
+    my $dev_strings = read_gene_dev_Tritag($dev_file_path);
+    my $tagger_results = cal_emission_TriTagger($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_Tritag);
     
 #    cal_emission_part
     
+    
+}
+
+sub cal_emission_TriTagger {
+    my ($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_Tritag) = @_;
     
 }
 
@@ -191,6 +196,44 @@ sub compute_emission {
     return \@tagger_results;
 }
 
+sub read_gene_dev_Tritag {
+    my ($dev_file_path) = @_;
+    
+    my @strings;
+    
+    # add start sequences
+    push(@strings, '*'); push(@strings, '*');
+    
+    my $i;
+    open (MYFILE, $dev_file_path);
+    while (<MYFILE>) {
+        chomp;
+        
+        push(@strings, $_);
+        
+        $i++;
+        last if ($i >= 15);
+    }
+    close (MYFILE);
+    
+#    print Dumper(\@strings);
+    
+    # return 3-gram
+    my $arr_count = @strings;
+    my @trigrams;
+    for (my $ii = 0; $ii < $arr_count; $ii++) {
+        if ( $ii-2 >=0 ) {
+            push(@trigrams, $strings[$ii-2]." ".$strings[$ii-1]." ".$strings[$ii]);
+        }
+    }
+    
+#print Dumper(\@trigrams);
+    
+    
+    
+    return \@trigrams;
+}
+
 sub read_gene_dev {
     my ($dev_file_path) = @_;
     
@@ -320,7 +363,7 @@ sub write_result {
 sub _get_default_Tritag {
     my ($all_n_gram) = @_;
     
-    return ( (sort { $all_n_gram->{'3'}->{$b} <=> $all_n_gram->{'3'}->{$a} } keys %$all_n_gram->{'3'})[0] );
+    return ( (sort { $all_n_gram->{'3'}->{$b} <=> $all_n_gram->{'3'}->{$a} } keys $all_n_gram->{'3'})[0] );
 }
 
 sub _get_default_tag {
