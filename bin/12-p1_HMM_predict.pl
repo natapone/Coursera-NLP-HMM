@@ -8,8 +8,8 @@ use FindBin;
 
 my $train_file_path = "$FindBin::Bin/../../h1-p/gene.train";
 my $count_file_path = "$FindBin::Bin/../../h1-p/gene.counts";
-my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.dev";
-#my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.test";
+#my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.dev";
+my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.test";
 #my $assignment_name = "p1";
 my $assignment_name = "p2";
 
@@ -41,74 +41,127 @@ if ($assignment_name eq 'p1') {
 if ($assignment_name eq 'p2') {
     # Compute Trigram part
     $all_n_gram = cal_trigram_TriTagger($lib_n_gram, $all_n_gram);
-    print Dumper($all_n_gram);
+#    print Dumper($all_n_gram);
     my $default_Tritag = _get_default_Tritag($all_n_gram);
-    print "default_Tritag == $default_Tritag \n";
+#    print "default_Tritag == $default_Tritag \n";
     
     my $dev_strings = read_gene_dev_Tritag($dev_file_path);
-    my $tagger_results = cal_emission_TriTagger($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_Tritag);
+    my $tagger_results = cal_emission_TriTagger($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_tag, $default_Tritag);
+#    print Dumper($tagger_results) ," \n";
     
-#    cal_emission_part
+    # write to result file
+    write_result($tagger_results, $result_file_path);
     
     
 }
 
 sub cal_emission_TriTagger {
-    my ($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_Tritag) = @_;
+    my ($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_tag, $default_Tritag) = @_;
     
     my @tagger_results;
-    
+    my $result_count = 0;
     foreach my $word_str (@$dev_strings) {
-        print $word_str, " ---- \n";
+#        print $word_str, " ---- \n";
         my @words = split(" ", $word_str);
-#        my $result = {};
-#        $result->{'word'}   = $word;
+        my $result = {};
+        $result->{'word'}   = $words[2]; # try to tag x1
         
-        # try all possible
-        foreach my $tag_str (keys $all_n_gram->{'3'}) {
-            print "        try - $tag_str ";
-            print " = ";
-            print $all_n_gram->{'3'}->{$tag_str};
-            print "\n";
-            
-            my @tags = split(" ", $tag_str);
-            
-            if (@tags == @words) {
-                my $gram_count = @tags;
-                for (my $ii = 0; $ii < $gram_count; $ii++) {
-                    print "           # ",$words[$ii] , "|", $tags[$ii];
-                    print " = ";
-                    
-                    if ($lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'} && $lib_n_gram->{$tags[$ii]}->{'_count'}) {
-                        my $scr = $lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'} / $lib_n_gram->{$tags[$ii]}->{'_count'};
-#                        if ($scr > $result->{'score'}) {
-#                            $result->{'tag'}    = $tag;
-#                            $result->{'score'}  = $scr;
-#                        }
+        # try all possible if not empty string
+        if ($words[2] ne '\n') {
+            $result->{'tag'}    = $default_tag;
+            $result->{'Tritag'} = $default_Tritag;
+            $result->{'score'}  = -1;
+
+            foreach my $tag_str (keys $all_n_gram->{'3'}) {
+#                print "        try - $tag_str ";
+#                print " = ";
+#                print $all_n_gram->{'3'}->{$tag_str};
+#                print "\n";
+                
+                my @tags = split(" ", $tag_str);
+                
+                if (@tags == @words) {
+                    my $gram_count = @tags;
+                    my $scr = $all_n_gram->{'3'}->{$tag_str};
+                    for (my $ii = 0; $ii < $gram_count; $ii++) {
+#                        print "           # ",$words[$ii] , "|", $tags[$ii];
+#                        print " = ";
                         
-                        print $lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'}
-                        , " / ", 
-                        $lib_n_gram->{$tags[$ii]}->{'_count'}
-                        , " = ",
-                        $lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'} / $lib_n_gram->{$tags[$ii]}->{'_count'}
-                        ;
-                    } else {
-                        print "======DATA MISSING!!!===================================";
+                        my $em_scr = 0;
+                        if ($lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'} && $lib_n_gram->{$tags[$ii]}->{'_count'}) {
+                            $em_scr = $lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'} / $lib_n_gram->{$tags[$ii]}->{'_count'};
+                            
+#                            print $lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'}
+#                            , " / ", 
+#                            $lib_n_gram->{$tags[$ii]}->{'_count'}
+#                            , " = ",
+#                            $em_scr
+#                            ;
+                        }
+                        
+#                        print "\n";
+                        # multiply with Trigram part
+                        $scr *= $em_scr;
+                        
                     }
-                    print "\n";
+#                    print "++++ sum score == $scr  cmp ".$result->{'score'}."\n";
+                    # select argument max probability
+                    if ($scr > 0 && $scr > $result->{'score'}) {
+                        $result->{'tag'}    = (split(' ', $tag_str))[-1];
+                        $result->{'Tritag'} = $tag_str;
+                        $result->{'score'}  = $scr;
+                    }
                     
-                    
-                }
-            } else {
-                print "Error tagging count: \n", Dumper(\@tags) , " != \n", Dumper(\@words);
-#                exit;
+                } 
+#                print " \n";
             }
-            print " \n";
         }
+#        print "result == ", Dumper($result);
+        push(@tagger_results, $result); # save result
+        
+        # look back to improve previous tagged
+        if ($result_count - 2 >= 0) {
+            # Improve yi-1
+#            print "     --- look back to $result_count --- ";
+#            print Dumper($tagger_results[$result_count-1]);
+            
+            my $p_result = $tagger_results[$result_count-1];
+            
+            if (defined($p_result->{'score'}) && defined($result->{'score'}) && 
+                $p_result->{'score'} < $result->{'score'}) {
+                
+#                $result->{'Tritag'} = "A B C";
+                
+                $p_result->{'tag'}      = (split(' ', $result->{'Tritag'}))[1]; # get the second tag
+                $p_result->{'score'}    = $result->{'score'};
+                
+                # replace
+                $tagger_results[$result_count-1] = $p_result;
+            }
+            
+            # Improve yi-2
+#            print "     --- look back to $result_count --- ";
+#            print Dumper($tagger_results[$result_count-2]);
+            
+            $p_result = $tagger_results[$result_count-2];
+            
+            if (defined($p_result->{'score'}) && defined($result->{'score'}) &&
+                $p_result->{'score'} < $result->{'score'}) {
+                
+#                $result->{'Tritag'} = "A B C";
+
+                $p_result->{'tag'}      = (split(' ', $result->{'Tritag'}))[0]; # get the first tag
+                $p_result->{'score'}    = $result->{'score'};
+
+                # replace
+                $tagger_results[$result_count-2] = $p_result;
+            }
+        }
+        $result_count++;
     }
     
-    
-    return "";
+#    print Dumper(\@tagger_results);
+    return \@tagger_results;
 }
 
 sub cal_trigram_TriTagger {
@@ -264,8 +317,8 @@ sub read_gene_dev_Tritag {
         $_ = '\n' if ($_ eq ''); # prevent error splitting
         push(@strings, $_);
         
-        $i++;
-        last if ($i >= 30);
+#        $i++;
+#        last if ($i >= 15);
     }
     close (MYFILE);
     
@@ -401,7 +454,7 @@ sub write_result {
             }
         }
         
-        if (defined($out)) {
+        if (defined($out) && $out ne '\n') {
             print OUTFILE $out."\n";
         } else {
             print OUTFILE "\n";
