@@ -56,6 +56,59 @@ if ($assignment_name eq 'p2') {
 sub cal_emission_TriTagger {
     my ($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_Tritag) = @_;
     
+    my @tagger_results;
+    
+    foreach my $word_str (@$dev_strings) {
+        print $word_str, " ---- \n";
+        my @words = split(" ", $word_str);
+#        my $result = {};
+#        $result->{'word'}   = $word;
+        
+        # try all possible
+        foreach my $tag_str (keys $all_n_gram->{'3'}) {
+            print "        try - $tag_str ";
+            print " = ";
+            print $all_n_gram->{'3'}->{$tag_str};
+            print "\n";
+            
+            my @tags = split(" ", $tag_str);
+            
+            if (@tags == @words) {
+                my $gram_count = @tags;
+                for (my $ii = 0; $ii < $gram_count; $ii++) {
+                    print "           # ",$words[$ii] , "|", $tags[$ii];
+                    print " = ";
+                    
+                    if ($lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'} && $lib_n_gram->{$tags[$ii]}->{'_count'}) {
+                        my $scr = $lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'} / $lib_n_gram->{$tags[$ii]}->{'_count'};
+#                        if ($scr > $result->{'score'}) {
+#                            $result->{'tag'}    = $tag;
+#                            $result->{'score'}  = $scr;
+#                        }
+                        
+                        print $lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'}
+                        , " / ", 
+                        $lib_n_gram->{$tags[$ii]}->{'_count'}
+                        , " = ",
+                        $lib_word_tag->{$tags[$ii]}->{$words[$ii]}->{'_count'} / $lib_n_gram->{$tags[$ii]}->{'_count'}
+                        ;
+                    } else {
+                        print "======DATA MISSING!!!===================================";
+                    }
+                    print "\n";
+                    
+                    
+                }
+            } else {
+                print "Error tagging count: \n", Dumper(\@tags) , " != \n", Dumper(\@words);
+#                exit;
+            }
+            print " \n";
+        }
+    }
+    
+    
+    return "";
 }
 
 sub cal_trigram_TriTagger {
@@ -208,11 +261,11 @@ sub read_gene_dev_Tritag {
     open (MYFILE, $dev_file_path);
     while (<MYFILE>) {
         chomp;
-        
+        $_ = '\n' if ($_ eq ''); # prevent error splitting
         push(@strings, $_);
         
         $i++;
-        last if ($i >= 15);
+        last if ($i >= 30);
     }
     close (MYFILE);
     
@@ -250,7 +303,7 @@ sub read_gene_dev {
         push(@strings, $_);
         
 #        $i++;
-        last if ($i >= 100);
+#        last if ($i >= 100);
     }
     close (MYFILE);
     
