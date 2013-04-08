@@ -8,9 +8,10 @@ use FindBin;
 
 my $train_file_path = "$FindBin::Bin/../../h1-p/gene.train";
 my $count_file_path = "$FindBin::Bin/../../h1-p/gene.counts";
-#my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.dev";
-my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.test";
-my $assignment_name = "p1";
+my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.dev";
+#my $dev_file_path   = "$FindBin::Bin/../../h1-p/gene.test";
+#my $assignment_name = "p1";
+my $assignment_name = "p2";
 
 my $result_file_path    = "$FindBin::Bin/../../h1-p/gene_dev.$assignment_name.out";
 
@@ -28,15 +29,123 @@ my ($lib_word_tag, $lib_n_gram, $all_n_gram) = build_lib($count_file_path);
 my $default_tag = _get_default_tag($lib_n_gram, $all_n_gram);
 
 # Compute emission part
-my $dev_strings = read_gene_dev($dev_file_path);
-my $tagger_results = compute_emission($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_tag);
-#print Dumper($tagger_results) ," \n";
-
-# write to result file
 if ($assignment_name eq 'p1') {
+    my $dev_strings = read_gene_dev($dev_file_path);
+    my $tagger_results = compute_emission($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_tag);
+    #print Dumper($tagger_results) ," \n";
+    
+    # write to result file
     write_result($tagger_results, $result_file_path);
 }
 
+# Compute Trigram part
+if ($assignment_name eq 'p2') {
+    $all_n_gram = cal_trigram_TriTagger($lib_n_gram, $all_n_gram);
+    print Dumper($all_n_gram);
+    my $default_Tritag = _get_default_Tritag($all_n_gram);
+    print "default_Tritag == $default_Tritag \n";
+    
+#    my $dev_strings = read_gene_dev($dev_file_path);
+#    my $tagger_results = compute_emission($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_Tritag);
+    
+#    cal_emission_part
+    
+    
+}
+
+sub cal_trigram_TriTagger {
+    my ($lib_n_gram, $all_n_gram) = @_;
+    
+    # try all possible
+    foreach my $tag (keys $all_n_gram->{'3'}) {
+#        print "     --> ",$tag, " : \n";
+        
+        my @tags = split(" ", $tag);
+#        print Dumper(\@tags);
+        my $t_prob = cal_qML(\@tags, $lib_n_gram );
+        $all_n_gram->{'3'}->{$tag} = $t_prob;
+    }
+    
+    return $all_n_gram;
+}
+
+sub cal_qML {
+    my ($tags, $lib_n_gram) = @_;
+    
+    my $hash_path = '';
+    my $target_hash = '$lib_n_gram';
+    
+    # HMM Trigram part
+    my $y1 = $$tags[0];
+    my $y2 = $$tags[1];
+    my $y3 = $$tags[2];
+    
+    # count(* * y1) / count(* *)
+    $hash_path = str_to_hash_path("* * $y1");
+    my $tr1_1 = eval $target_hash.$hash_path;
+#    print "tr1_1 === $tr1_1 / ";
+    
+    $hash_path = str_to_hash_path("* *");
+    my $tr1_2 = eval $target_hash.$hash_path;
+#    print "tr1_2 === $tr1_2 \n";
+    
+    # count(* y1 y2) / count(* y1)
+    $hash_path = str_to_hash_path("* $y1 $y2");
+    my $tr2_1 = eval $target_hash.$hash_path;
+#    print "tr2_1 === $tr2_1 / ";
+    
+    $hash_path = str_to_hash_path("* $y1");
+    my $tr2_2 = eval $target_hash.$hash_path;
+#    print "tr2_2 === $tr2_2 \n";
+    
+    # count(y1 y2 y3) / count (y1 y2)
+    $hash_path = str_to_hash_path("$y1 $y2 $y3");
+    my $tr3_1 = eval $target_hash.$hash_path;
+#    print "tr3_1 === $tr3_1 / ";
+    
+    $hash_path = str_to_hash_path("$y1 $y2");
+    my $tr3_2 = eval $target_hash.$hash_path;
+#    print "tr3_2 === $tr3_2 \n";
+    
+    # count(y2 y3 STOP) / count (y2 y3)
+    $hash_path = str_to_hash_path("$y2 $y3 STOP");
+    my $tr4_1 = eval $target_hash.$hash_path;
+#    print "tr4_1 === $tr4_1 / ";
+    
+    $hash_path = str_to_hash_path("$y2 $y3");
+    my $tr4_2 = eval $target_hash.$hash_path;
+#    print "tr4_2 === $tr4_2 \n";
+    
+    # validate 
+    my $t_prob = 0;
+    if (
+        defined($tr1_1) && defined($tr1_2) && 
+        defined($tr2_1) && defined($tr2_2) && 
+        defined($tr3_1) && defined($tr3_2) && 
+        defined($tr4_1) && defined($tr4_2)
+    )  {
+        $t_prob =    ($tr1_1 / $tr1_2) * 
+                    ($tr2_1 / $tr2_2) * 
+                    ($tr3_1 / $tr3_2) * 
+                    ($tr4_1 / $tr4_2)
+    }
+    
+    # assign prob for each gram
+    return $t_prob;
+}
+
+sub str_to_hash_path {
+    my ($str) = @_;
+    
+    my $path = "";
+    my @parts = split(' ', $str);
+    
+    foreach my $part (@parts) {
+#        print $arr ," -- ";
+        $path .= "->{'$part'}";
+    }
+    return $path."->{'_count'}";
+}
 
 sub compute_emission {
     my ($dev_strings, $lib_word_tag, $lib_n_gram, $all_n_gram, $default_tag) = @_;
@@ -98,7 +207,7 @@ sub read_gene_dev {
         push(@strings, $_);
         
 #        $i++;
-#        last if ($i >= 150);
+        last if ($i >= 100);
     }
     close (MYFILE);
     
@@ -151,10 +260,12 @@ sub build_lib {
             my @count_parts = split(/ /, $_, 3);
             my @word_parts  = split(/ /, $count_parts[2]);
             
-            #----------
+            #-Build all possible grams combination---------
             if ($target_hash eq '$lib_n_gram' && $1 ) {
-                $all_n_gram->{$1}->{$count_parts[2]} = 1;
-                
+                # remove start, stop sequences from trigram possible results
+                if ($count_parts[2] !~ /\*/ && $count_parts[2] !~ /STOP/) {
+                    $all_n_gram->{$1}->{$count_parts[2]} = 1;
+                }
             }
             #----------
             
@@ -205,6 +316,12 @@ sub write_result {
     print "Write output to $result_file_path \n";
 }
 
+#for Trigram tagger
+sub _get_default_Tritag {
+    my ($all_n_gram) = @_;
+    
+    return ( (sort { $all_n_gram->{'3'}->{$b} <=> $all_n_gram->{'3'}->{$a} } keys %$all_n_gram->{'3'})[0] );
+}
 
 sub _get_default_tag {
     my ($lib_n_gram, $all_n_gram) = @_;
